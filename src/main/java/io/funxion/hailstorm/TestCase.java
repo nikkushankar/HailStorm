@@ -122,6 +122,7 @@ public abstract class TestCase {
 	}
 	private Metric metric = new Metric();
 	private enum STATUS{SUCCESS,FAILURE;}
+	class FatalException extends Exception{}
 	private class Step{
 		public STATUS status;
 		public String stepName;
@@ -146,7 +147,23 @@ public abstract class TestCase {
 			step.stepStartTime = Instant.now();
 		}
 		public void endStep(String stepName,STATUS status) {
+			if(status == STATUS.FAILURE) {
+				steps.forEach((key,step) -> {
+					if(step.status == null) {
+						step.status = STATUS.FAILURE;
+						step.stepEndTime = Instant.now();
+						step.timeTaken = Duration.between(step.stepStartTime, step.stepEndTime);
+						try {
+							metric.addStep(step);
+						} catch (IOException e) {
+							e.printStackTrace(System.err);
+						}
+					}
+				}) ;
+				return;
+			}
 			Step step = steps.get(stepName);
+			if(step == null) throw new Error("Incorrect Step Name");
 			step.status = status;
 			step.stepEndTime = Instant.now();
 			step.timeTaken = Duration.between(step.stepStartTime, step.stepEndTime);
@@ -162,12 +179,12 @@ public abstract class TestCase {
 		}
 	}
 	protected class Configuration {
-		public int vUsers, iterations, duration;
+		public int vUsers, iterations, duration,rampRate,throughput;
 		public int trackTimer;
 		public Duration connectTimeout = Duration.ofSeconds(10);
 		public String authUser, authPassword;
 		public String proxyHost, proxyPort;
-		public boolean functionalMode=false;
+		public boolean functionalMode=false,verbose=false;
 		public Instant testEndTime,testStartTime = Instant.now();
 		
 		@Override
@@ -179,10 +196,11 @@ public abstract class TestCase {
 					.append(", connectTimeout=").append(connectTimeout).append(", authUser=").append(authUser)
 					.append(", authPassword=").append(authPassword).append(", proxyHost=").append(proxyHost)
 					.append(", proxyPort=").append(proxyPort).append(", functionalMode=").append(functionalMode)
+					.append(", verbose=").append(verbose).append(", throughput=").append(throughput)
+					.append(", rampRate=").append(rampRate)
 					.append(", testEndTime=").append(testEndTime).append("]");
 			return builder.toString();
-		}		
-		
+		}				
 	}
 
 	private class VUser implements Runnable {
@@ -207,13 +225,16 @@ public abstract class TestCase {
 						tracker.startStep("MAIN");
 						test.execute();
 						tracker.endStep("MAIN");
+					} catch (FatalException fe) {
+						fe.printStackTrace(System.err);
+						tracker.endStep("MAIN",STATUS.FAILURE);
+						break;
 					} catch (Exception e) {
 						e.printStackTrace(System.err);
 						tracker.endStep("MAIN",STATUS.FAILURE);
-					}
+					} 
 					if(config.functionalMode)break;
-				}
-				
+				}				
 			}
 			int activeThreads = test.threadCounter.decrementAndGet();
 			if(activeThreads <= 0) {
@@ -232,24 +253,32 @@ public abstract class TestCase {
 		Configuration config = new Configuration();
 		Options options = new Options();
 
-		options.addOption(new Option("r", "captureRawData", false, "Capture Raw Data"));
+		options.addOption(new Option("rr", "rampRate", true, "Ramp Rate No of VUsers increment per second"));
 		options.addOption(new Option("i", "iterations", true, "Iterations Count"));
-		options.addOption(new Option("d", "duration", true, "duration in seconds"));
+		options.addOption(new Option("d", "duration", true, "Test duration in seconds"));
 		options.addOption(new Option("v", "vusers", true, "No of Virtual Users"));
 		options.addOption(new Option("ct", "connectTimeout", true, "Connect Timeout in seconds"));
 		options.addOption(new Option("ph", "proxyHost", true, "Proxy Host"));
 		options.addOption(new Option("pp", "proxyPort", true, "Proxy Port"));
 		options.addOption(new Option("au", "authUser", true, "UserName used for Authentication"));
 		options.addOption(new Option("ap", "authPassword", true, "Password for Authentication"));
-		options.addOption(new Option("t", "trackTimer", true, "Track Execution every n seconds"));
+		options.addOption(new Option("pm", "printMetric", true, "Print Current Metric every N seconds"));
+		options.addOption(new Option("th", "throughput", true, "Max Throughput"));
+		options.addOption(new Option("h", "help", false, "Print Help"));
+		options.addOption(new Option("x", "verbose", false, "Verbose Output for debugging"));
 
 		try {
 			CommandLineParser parser = new DefaultParser();			
 			CommandLine cmd = parser.parse(options, args);
-			config.trackTimer = Integer.parseInt(cmd.getOptionValue("trackTimer","0"));
+			
+			if(cmd.hasOption("h")) throw new ParseException("Invoked in Help Mode");
+			if(cmd.hasOption("x")) config.verbose = true; 
+			config.trackTimer = Integer.parseInt(cmd.getOptionValue("printMetric","0"));
 			config.vUsers = Integer.parseInt(cmd.getOptionValue("vusers","1"));
 			config.duration = Integer.parseInt(cmd.getOptionValue("duration","0"));		
 			config.iterations = Integer.parseInt(cmd.getOptionValue("iterations","0"));
+			config.rampRate = Integer.parseInt(cmd.getOptionValue("rampRate","0"));
+			config.throughput = Integer.parseInt(cmd.getOptionValue("throughput","0"));
 			config.connectTimeout = Duration.ofSeconds(Integer.parseInt(cmd.getOptionValue("connectTimeout","10")));
 			config.proxyHost = cmd.getOptionValue("proxyHost");
 			config.proxyPort = cmd.getOptionValue("proxyPort");
@@ -273,6 +302,17 @@ public abstract class TestCase {
 	}
 
 	private ThreadLocal<StepTracker> tracker = new ThreadLocal<StepTracker>();
+	protected final void debug(String message) {
+		if(config.verbose) {
+			System.out.println(message);
+		}
+	}
+	protected void Assert(Object actual,Object expected,String message) throws Exception {
+		if(!actual.toString().equalsIgnoreCase(expected.toString())) {
+			throw new Exception(String.format("%s,Actual:%s,Expected:%s",message,actual.toString(),expected.toString()));
+		}
+	}
+
 	protected final void startStep(String stepName) {
 		tracker.get().startStep(stepName);
 	}
@@ -300,10 +340,15 @@ public abstract class TestCase {
 		try {
 			init();			
 			executor = Executors.newFixedThreadPool(config.vUsers);
+			int sleepTime = 0;
+			if(config.rampRate > 0) {
+				sleepTime = 1/config.rampRate;
+			} 
 			for (int i = 0; i < config.vUsers; i++) {
 				threadCounter.incrementAndGet();
 				VUser vUser = new VUser(this);
 				executor.execute(vUser);
+				Thread.sleep(sleepTime * 1000);
 			}
 		} catch (Exception e) {
 			e.printStackTrace(System.err);
@@ -329,7 +374,6 @@ public abstract class TestCase {
 			int proxyPort = Integer.parseInt(config.proxyPort);
 			clientBuilder.proxy(ProxySelector.of(new InetSocketAddress(config.proxyHost, proxyPort)));
 		}
-
 		return clientBuilder.build();
 	}
 
