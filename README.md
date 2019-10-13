@@ -14,7 +14,7 @@ Inspired by https://github.com/mstump/httpbench/blob/master/httpbench.go
 ```
 java -cp target\HailStorm-1.0.jar src/test/java/Test1.java 2>script.err
 --------------------------------------------------------------------------------
-Configuration [vUsers=1, iterations=0, duration=0, trackTimer=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=true, testEndTime=2019-10-14T20:02:26.972784700Z]
+Configuration [vUsers=1, iterations=0, duration=0, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=true, testEndTime=2019-10-14T20:02:26.972784700Z]
 STEP:STEP1                628(ms)     SUCCESS
 STEP:STEP2                 91(ms)     SUCCESS
 STEP:MAIN                1166(ms)     SUCCESS
@@ -28,7 +28,7 @@ DURATION:1 Seconds
 ```
 java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -i 100  2>script.err
 --------------------------------------------------------------------------------
-Configuration [vUsers=2, iterations=100, duration=0, trackTimer=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, testEndTime=2019-10-14T20:00:54.991261900Z]
+Configuration [vUsers=2, iterations=100, duration=0, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=true, throughput=0, rampRate=0, testEndTime=2019-10-14T20:00:54.991261900Z]
 --------------------------------------------------------------------------------
 STEP:STEP1       , MIN:       18.00, MAX:      496.00, MEAN:       36.42
 STEP:STEP2       , MIN:       19.00, MAX:      286.00, MEAN:       35.08
@@ -43,9 +43,9 @@ DURATION:48 Seconds
 ```
 ### With Tracking Output every 10 seconds. 
 ```
-java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -i 200 -t 10 2>script.err
+java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -i 200 -pm 10 2>script.err
 --------------------------------------------------------------------------------
-Configuration [vUsers=2, iterations=200, duration=0, trackTimer=10, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, testEndTime=2019-10-14T21:06:52.012953800Z]
+Configuration [vUsers=2, iterations=200, duration=0, printMetric=10, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=true, throughput=0, rampRate=0, testEndTime=2019-10-14T21:06:52.012953800Z]
 --------------------------------------------------------------------------------
 ITERATIONS=41 : MAIN : 457.78 : STEP1 : 44.52 : STEP2 : 22.7
 ITERATIONS=44 : MAIN : 445.16 : STEP1 : 21.20 : STEP2 : 21.4
@@ -71,7 +71,7 @@ DURATION:89 Seconds
 ```
 java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -d 10
 --------------------------------------------------------------------------------
-Configuration [vUsers=2, iterations=0, duration=10, trackTimer=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, testEndTime=2019-10-04T21:43:59.899962500Z]
+Configuration [vUsers=2, iterations=0, duration=10, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=true, throughput=0, rampRate=0, testEndTime=2019-10-04T21:43:59.899962500Z]
 --------------------------------------------------------------------------------
 STEP:STEP1       , MIN:       17.00, MAX:      434.00, MEAN:       34.54
 STEP:STEP2       , MIN:       15.00, MAX:       43.00, MEAN:       24.83

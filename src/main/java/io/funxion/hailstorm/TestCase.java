@@ -180,7 +180,7 @@ public abstract class TestCase {
 	}
 	protected class Configuration {
 		public int vUsers, iterations, duration,rampRate,throughput;
-		public int trackTimer;
+		public int printMetric;
 		public Duration connectTimeout = Duration.ofSeconds(10);
 		public String authUser, authPassword;
 		public String proxyHost, proxyPort;
@@ -192,7 +192,7 @@ public abstract class TestCase {
 			StringBuilder builder = new StringBuilder();
 			builder.append("Configuration [")
 					.append("vUsers=").append(vUsers).append(", iterations=").append(iterations)
-					.append(", duration=").append(duration).append(", trackTimer=").append(trackTimer)
+					.append(", duration=").append(duration).append(", printMetric=").append(printMetric)
 					.append(", connectTimeout=").append(connectTimeout).append(", authUser=").append(authUser)
 					.append(", authPassword=").append(authPassword).append(", proxyHost=").append(proxyHost)
 					.append(", proxyPort=").append(proxyPort).append(", functionalMode=").append(functionalMode)
@@ -273,7 +273,7 @@ public abstract class TestCase {
 			
 			if(cmd.hasOption("h")) throw new ParseException("Invoked in Help Mode");
 			if(cmd.hasOption("x")) config.verbose = true; 
-			config.trackTimer = Integer.parseInt(cmd.getOptionValue("printMetric","0"));
+			config.printMetric = Integer.parseInt(cmd.getOptionValue("printMetric","0"));
 			config.vUsers = Integer.parseInt(cmd.getOptionValue("vusers","1"));
 			config.duration = Integer.parseInt(cmd.getOptionValue("duration","0"));		
 			config.iterations = Integer.parseInt(cmd.getOptionValue("iterations","0"));
@@ -330,8 +330,8 @@ public abstract class TestCase {
 		if(httpClient == null) {
 			httpClient = createClient();
 		}
-		if(config.trackTimer > 0) {
-			metric.startPrintTimer(config.trackTimer);
+		if(config.printMetric > 0) {
+			metric.startPrintTimer(config.printMetric);
 		}
 	}
 
