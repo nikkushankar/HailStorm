@@ -342,9 +342,15 @@ public abstract class TestCase {
 			metric.startPrintTimer(config.printMetric);
 		}
 	}
-
 	public final void start(String[] args) {
 		config = getConfiguration(args);
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+		    try {
+		    	if(!stopTest) metric.printSummary();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		 }));
 		try {
 			init();			
 			executor = Executors.newFixedThreadPool(config.vUsers);

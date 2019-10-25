@@ -125,3 +125,24 @@ TEST_END:Oct 24, 2019, 11:06:22 PM
 DURATION:1 Seconds
 --------------------------------------------------------------------------------
 ```
+### Execution Stopped with Ctrl + c
+```
+java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -d 60  -pm 10
+--------------------------------------------------------------------------------
+Configuration [vUsers=2, iterations=2147483647, duration=60, printMetric=10, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=false, throughput=0, rampRate=0, testEndTime=2019-10-25T06:40:04.071195700Z]
+--------------------------------------------------------------------------------
+EXECUTIONS=40 : ERRORS=0 : MAIN : 495.87 : STEP1 : 47.12 : STEP2 : 32.1
+EXECUTIONS=44 : ERRORS=0 : MAIN : 455.80 : STEP1 : 28.58 : STEP2 : 25.4
+EXECUTIONS=4 : ERRORS=0 : MAIN : 449.00 : STEP1 : 24.20 : STEP2 : 26.1
+--------------------------------------------------------------------------------
+STEP:STEP1       , MIN:       16.00, MAX:      541.00, MEAN:       36.88
+STEP:STEP2       , MIN:       16.00, MAX:      102.00, MEAN:       28.47
+--------------------------------------------------------------------------------
+SUCCESSFUL_EXECUTION:88, MIN:      437.00, MAX:     1001.00, MEAN:      473.70
+FAILED_EXECUTION:0,FAILED_PERCENTAGE 0.00
+--------------------------------------------------------------------------------
+TEST_START:Oct 24, 2019, 11:39:04 PM
+TEST_END:Oct 24, 2019, 11:39:25 PM
+DURATION:21 Seconds
+--------------------------------------------------------------------------------
+```
