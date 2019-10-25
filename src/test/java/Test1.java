@@ -41,9 +41,11 @@ public class Test1 extends TestCase{
 				JsonReader jsonReader = Json.createReader(new StringReader(response1.body()));
 				JsonObject object = jsonReader.readObject();
 				jsonReader.close();
+				debug("Book Title : "+object.getString("title"));
 				if(!object.getString("title").contains("delectus")) {
 					throw new Exception("Incorrect String");
 				}
+				debug("HTTP Status Code step1 :"+response1.statusCode());
 				if(response1.statusCode() != 200) {
 					endStepWithError("STEP1");
 					throw new Exception(String.format("Error Accessing URI:ResponseCode=%d",response1.statusCode()));	
@@ -56,6 +58,7 @@ public class Test1 extends TestCase{
 				.GET()   
 		        .build();
 				HttpResponse<String> response2 = httpClient.send(request2, BodyHandlers.ofString());
+				debug("HTTP Status Code step2 :"+response2.statusCode());
 				if(response2.statusCode() != 200) {
 					endStepWithError("STEP2");
 					throw new Exception(String.format("Error Accessing URI:%s,ResponseCode=%d",response2.statusCode()));	

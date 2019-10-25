@@ -10,77 +10,118 @@ Inspired by https://github.com/mstump/httpbench/blob/master/httpbench.go
 ```mvn clean package```
 
 ## Usage
+### Help Mode
+```
+java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -h
+Invoked in Help Mode
+usage: TestBench
+ -ap,--authPassword <arg>     Password for Authentication
+ -au,--authUser <arg>         UserName used for Authentication
+ -ct,--connectTimeout <arg>   Connect Timeout in seconds
+ -d,--duration <arg>          Test duration in seconds
+ -h,--help                    Print Help
+ -i,--iterations <arg>        Iterations Count
+ -ph,--proxyHost <arg>        Proxy Host
+ -pm,--printMetric <arg>      Print Current Metric every N seconds
+ -pp,--proxyPort <arg>        Proxy Port
+ -rr,--rampRate <arg>         Ramp Rate No of VUsers increment per second
+ -th,--throughput <arg>       Max Throughput
+ -v,--vusers <arg>            No of Virtual Users
+ -x,--verbose                 Verbose Output for debugging
+```
+
 ### Functional Mode
 ```
 java -cp target\HailStorm-1.0.jar src/test/java/Test1.java 2>script.err
 --------------------------------------------------------------------------------
-Configuration [vUsers=1, iterations=0, duration=0, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=true, testEndTime=2019-10-14T20:02:26.972784700Z]
-STEP:STEP1                628(ms)     SUCCESS
-STEP:STEP2                 91(ms)     SUCCESS
-STEP:MAIN                1166(ms)     SUCCESS
+Configuration [vUsers=1, iterations=2147483647, duration=0, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=true, verbose=false, throughput=0, rampRate=0, testEndTime=2019-11-04T05:47:38.920781500Z]
+STEP:STEP1                809(ms)     SUCCESS
+STEP:STEP2                 29(ms)     SUCCESS
+STEP:MAIN                1292(ms)     SUCCESS
 --------------------------------------------------------------------------------
-TEST_START:Oct 4, 2019, 1:02:26 PM
-TEST_END:Oct 4, 2019, 1:02:28 PM
-DURATION:1 Seconds
+TEST_START:Oct 24, 2019, 10:47:38 PM
+TEST_END:Oct 24, 2019, 10:47:41 PM
+DURATION:2 Seconds
 --------------------------------------------------------------------------------
 ```
 ### LoadTest Mode
 ```
 java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -i 100  2>script.err
 --------------------------------------------------------------------------------
-Configuration [vUsers=2, iterations=100, duration=0, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=true, throughput=0, rampRate=0, testEndTime=2019-10-14T20:00:54.991261900Z]
+Configuration [vUsers=2, iterations=100, duration=0, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=false, throughput=0, rampRate=0, testEndTime=2019-11-04T05:49:33.284706200Z]
+EXECUTIONS=200 : ERRORS=0 : MAIN : 463.10 : STEP1 : 30.86 : STEP2 : 27.6
 --------------------------------------------------------------------------------
-STEP:STEP1       , MIN:       18.00, MAX:      496.00, MEAN:       36.42
-STEP:STEP2       , MIN:       19.00, MAX:      286.00, MEAN:       35.08
+STEP:STEP1       , MIN:       16.00, MAX:      519.00, MEAN:       30.86
+STEP:STEP2       , MIN:       17.00, MAX:       92.00, MEAN:       27.62
 --------------------------------------------------------------------------------
-SUCCESSFUL_EXECUTION:200, MIN:      441.00, MAX:      975.00, MEAN:      475.90
+SUCCESSFUL_EXECUTION:200, MIN:      435.00, MAX:      973.00, MEAN:      463.10
 FAILED_EXECUTION:0,FAILED_PERCENTAGE 0.00
 --------------------------------------------------------------------------------
-TEST_START:Oct 4, 2019, 1:00:54 PM
-TEST_END:Oct 4, 2019, 1:01:43 PM
-DURATION:48 Seconds
+TEST_START:Oct 24, 2019, 10:49:33 PM
+TEST_END:Oct 24, 2019, 10:50:20 PM
+DURATION:47 Seconds
 --------------------------------------------------------------------------------
 ```
 ### With Tracking Output every 10 seconds. 
 ```
 java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -i 200 -pm 10 2>script.err
 --------------------------------------------------------------------------------
-Configuration [vUsers=2, iterations=200, duration=0, printMetric=10, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=true, throughput=0, rampRate=0, testEndTime=2019-10-14T21:06:52.012953800Z]
+Configuration [vUsers=2, iterations=200, duration=0, printMetric=10, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=false, throughput=0, rampRate=0, testEndTime=2019-11-04T05:56:43.642612600Z]
 --------------------------------------------------------------------------------
-ITERATIONS=41 : MAIN : 457.78 : STEP1 : 44.52 : STEP2 : 22.7
-ITERATIONS=44 : MAIN : 445.16 : STEP1 : 21.20 : STEP2 : 21.4
-ITERATIONS=46 : MAIN : 441.72 : STEP1 : 19.93 : STEP2 : 19.5
-ITERATIONS=44 : MAIN : 441.48 : STEP1 : 19.77 : STEP2 : 19.3
-ITERATIONS=46 : MAIN : 441.52 : STEP1 : 20.33 : STEP2 : 19.1
-ITERATIONS=44 : MAIN : 452.27 : STEP1 : 27.86 : STEP2 : 21.9
-ITERATIONS=46 : MAIN : 442.30 : STEP1 : 19.29 : STEP2 : 21.2
-ITERATIONS=44 : MAIN : 441.36 : STEP1 : 20.48 : STEP2 : 19.2
+EXECUTIONS=40 : ERRORS=0 : MAIN : 485.58 : STEP1 : 42.83 : STEP2 : 30.1
+EXECUTIONS=44 : ERRORS=0 : MAIN : 452.93 : STEP1 : 25.73 : STEP2 : 24.6
+EXECUTIONS=44 : ERRORS=0 : MAIN : 461.45 : STEP1 : 32.39 : STEP2 : 26.7
+EXECUTIONS=44 : ERRORS=0 : MAIN : 450.64 : STEP1 : 23.95 : STEP2 : 24.7
+EXECUTIONS=44 : ERRORS=0 : MAIN : 451.89 : STEP1 : 26.05 : STEP2 : 24.1
+EXECUTIONS=45 : ERRORS=0 : MAIN : 449.33 : STEP1 : 23.82 : STEP2 : 24.3
+EXECUTIONS=43 : ERRORS=0 : MAIN : 458.28 : STEP1 : 29.05 : STEP2 : 27.8
+EXECUTIONS=44 : ERRORS=0 : MAIN : 453.61 : STEP1 : 25.07 : STEP2 : 26.1
+EXECUTIONS=45 : ERRORS=0 : MAIN : 454.84 : STEP1 : 26.77 : STEP2 : 26.3
+EXECUTIONS=7 : ERRORS=0 : MAIN : 463.29 : STEP1 : 25.50 : STEP2 : 34.7
 --------------------------------------------------------------------------------
-STEP:STEP1       , MIN:       13.00, MAX:      543.00, MEAN:       22.22
-STEP:STEP2       , MIN:       14.00, MAX:       97.00, MEAN:       20.46
+STEP:STEP1       , MIN:       16.00, MAX:      441.00, MEAN:       28.24
+STEP:STEP2       , MIN:       15.00, MAX:      153.00, MEAN:       26.23
 --------------------------------------------------------------------------------
-SUCCESSFUL_EXECUTION:399, MIN:      431.00, MAX:     1020.00, MEAN:      444.70
+SUCCESSFUL_EXECUTION:400, MIN:      435.00, MAX:      903.00, MEAN:      457.41
 FAILED_EXECUTION:0,FAILED_PERCENTAGE 0.00
 --------------------------------------------------------------------------------
-TEST_START:Oct 4, 2019, 2:06:52 PM
-TEST_END:Oct 4, 2019, 2:08:21 PM
-DURATION:89 Seconds
+TEST_START:Oct 24, 2019, 10:56:43 PM
+TEST_END:Oct 24, 2019, 10:58:16 PM
+DURATION:93 Seconds
 --------------------------------------------------------------------------------
 ```
 ### With Defined Duration
 ```
-java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -d 10
+java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -v 2 -d 20
 --------------------------------------------------------------------------------
-Configuration [vUsers=2, iterations=0, duration=10, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=true, throughput=0, rampRate=0, testEndTime=2019-10-04T21:43:59.899962500Z]
+Configuration [vUsers=2, iterations=2147483647, duration=20, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=false, throughput=0, rampRate=0, testEndTime=2019-10-25T06:00:00.817248700Z]
+EXECUTIONS=86 : ERRORS=0 : MAIN : 466.99 : STEP1 : 30.68 : STEP2 : 29.2
 --------------------------------------------------------------------------------
-STEP:STEP1       , MIN:       17.00, MAX:      434.00, MEAN:       34.54
-STEP:STEP2       , MIN:       15.00, MAX:       43.00, MEAN:       24.83
+STEP:STEP1       , MIN:       18.00, MAX:      435.00, MEAN:       30.68
+STEP:STEP2       , MIN:       18.00, MAX:      164.00, MEAN:       29.24
 --------------------------------------------------------------------------------
-SUCCESSFUL_EXECUTION:42, MIN:      435.00, MAX:      891.00, MEAN:      471.88
+SUCCESSFUL_EXECUTION:86, MIN:      437.00, MAX:      906.00, MEAN:      466.99
 FAILED_EXECUTION:0,FAILED_PERCENTAGE 0.00
 --------------------------------------------------------------------------------
-TEST_START:Oct 4, 2019, 2:43:49 PM
-TEST_END:Oct 4, 2019, 2:44:00 PM
-DURATION:10 Seconds
+TEST_START:Oct 24, 2019, 10:59:40 PM
+TEST_END:Oct 24, 2019, 11:00:01 PM
+DURATION:20 Seconds
+--------------------------------------------------------------------------------
+```
+### Functional Mode with Debug on
+```
+java -cp target\HailStorm-1.0.jar src/test/java/Test1.java -x
+--------------------------------------------------------------------------------
+Configuration [vUsers=1, iterations=2147483647, duration=0, printMetric=0, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=true, verbose=true, throughput=0, rampRate=0, testEndTime=2019-11-04T06:06:20.755777500Z]
+Book Title : delectus aut autem
+HTTP Status Code step1 :200
+STEP:STEP1                445(ms)     SUCCESS
+HTTP Status Code step2 :200
+STEP:STEP2                 25(ms)     SUCCESS
+STEP:MAIN                 902(ms)     SUCCESS
+--------------------------------------------------------------------------------
+TEST_START:Oct 24, 2019, 11:06:20 PM
+TEST_END:Oct 24, 2019, 11:06:22 PM
+DURATION:1 Seconds
 --------------------------------------------------------------------------------
 ```

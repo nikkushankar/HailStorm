@@ -43,54 +43,70 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.math3.stat.descriptive.SynchronizedSummaryStatistics;
 
 public abstract class TestCase {
-	private AtomicInteger threadCounter = new AtomicInteger();
+	private boolean stopTest=false;
+	private static AtomicInteger execCounter = new AtomicInteger();
+	private AtomicInteger runningThreads = new AtomicInteger();
 	protected static HttpClient httpClient = null;	
 	private class Metric {
 		private Map<String, SynchronizedSummaryStatistics> totalStats = new HashMap<>();
 		private Map<String, SynchronizedSummaryStatistics> runningStats = new HashMap<>();
 		private AtomicInteger failureCounter = new AtomicInteger();
+		private AtomicInteger runningFailureCounter = new AtomicInteger();
 		private AtomicInteger iterationCounter = new AtomicInteger();
 		private Timer printTimer = null; 
-		
+		private void printMetric() {
+			StringBuilder sb = new StringBuilder();
+        	long numIteration = 0;
+        	synchronized (runningStats){
+	        	if(runningStats.get("MAIN") != null) {
+	        		numIteration = runningStats.get("MAIN").getN();
+	        	}
+	        	int numErrors = runningFailureCounter.getAndSet(0);
+	        	sb.append("EXECUTIONS=").append(numIteration + numErrors);		        	
+	        	sb.append(" : ").append("ERRORS=").append(numErrors);
+	        	runningStats.forEach((key,value)->{
+					sb.append(String.format(" : %s : %5.2f",key,value.getMean()));
+					});
+	        	if(runningStats.size() > 0) sb.deleteCharAt(sb.length()-1);
+	        	runningStats.clear();
+        	}
+        	System.out.println(sb);
+            
+		}
 		public void startPrintTimer(int seconds) {
 			System.out.printf("-".repeat(80).concat("\n"));
 			printTimer = new java.util.Timer();
 			printTimer.schedule(new TimerTask(){
 		        @Override
-		        public void run() {
-		        	StringBuilder sb = new StringBuilder();
-		        	sb.append("ITERATIONS=").append(runningStats.get("MAIN").getN());
-		        	//sb.append(" : DURATION=").append(testStartTime.until(Instant.now(), ChronoUnit.SECONDS));
-		        	runningStats.forEach((key,value)->{
-						sb.append(String.format(" : %s : %5.2f",key,value.getMean()));
-						});
-		        	sb.deleteCharAt(sb.length()-1);
-		        	System.out.println(sb);
-		            runningStats.clear(); 
+		        public void run() {		        	
+		        	printMetric();
 		        }
 		    },1000*seconds,1000*seconds); 
 		}
 		public void stopPrintTimer() {
-			if(printTimer != null)printTimer.cancel();
+			if(printTimer != null)printTimer.cancel();			
 		}
 		public void addStep(Step step) throws IOException {
 			if(step.status == STATUS.SUCCESS) {
-				SynchronizedSummaryStatistics totalStat = totalStats.get(step.stepName);
-				if(totalStat == null) {
-					totalStat = new SynchronizedSummaryStatistics();
-					totalStats.put(step.stepName, totalStat);
-				}
-				totalStat.addValue(step.timeTaken.toMillis());
-				
 				SynchronizedSummaryStatistics runningStat = runningStats.get(step.stepName);
 				if(runningStat == null) {
 					runningStat = new SynchronizedSummaryStatistics();
 					runningStats.put(step.stepName, runningStat);
 				}
-				runningStat.addValue(step.timeTaken.toMillis());				
+				
+				SynchronizedSummaryStatistics totalStat = totalStats.get(step.stepName);
+				if(totalStat == null) {
+					totalStat = new SynchronizedSummaryStatistics();
+					totalStats.put(step.stepName, totalStat);
+				}
+				synchronized(runningStats) {
+					runningStat.addValue(step.timeTaken.toMillis());								
+					totalStat.addValue(step.timeTaken.toMillis());
+				}
 			} else {
 				if(step.stepName.equalsIgnoreCase("MAIN")) {
 					failureCounter.incrementAndGet();
+					runningFailureCounter.incrementAndGet();					
 				}
 			}
 			if(config.functionalMode) {
@@ -99,6 +115,7 @@ public abstract class TestCase {
 		}
 		public void printSummary() throws IOException {
 			if(!config.functionalMode) {
+				printMetric();
 				SynchronizedSummaryStatistics mainStat = totalStats.remove("MAIN");
 				if(totalStats.size() > 0 ) {
 					System.out.printf("-".repeat(80).concat("\n"));
@@ -127,7 +144,12 @@ public abstract class TestCase {
 		public STATUS status;
 		public String stepName;
 		public Instant stepStartTime,stepEndTime;
-		public Duration timeTaken;		
+		public Duration timeTaken;
+		@Override
+		public String toString() {
+			return "Step [status=" + status + ", stepName=" + stepName + ", stepStartTime=" + stepStartTime + ", stepEndTime=" + stepEndTime + ", timeTaken="
+					+ timeTaken + "]";
+		}		
 	}
 	
 	private class StepTracker {
@@ -149,16 +171,14 @@ public abstract class TestCase {
 		public void endStep(String stepName,STATUS status) {
 			if(status == STATUS.FAILURE) {
 				steps.forEach((key,step) -> {
-					if(step.status == null) {
-						step.status = STATUS.FAILURE;
-						step.stepEndTime = Instant.now();
-						step.timeTaken = Duration.between(step.stepStartTime, step.stepEndTime);
-						try {
-							metric.addStep(step);
-						} catch (IOException e) {
-							e.printStackTrace(System.err);
-						}
-					}
+					step.status = STATUS.FAILURE;
+					step.stepEndTime = Instant.now();
+					step.timeTaken = Duration.between(step.stepStartTime, step.stepEndTime);
+					try {
+						metric.addStep(step);
+					} catch (IOException e) {
+						e.printStackTrace(System.err);
+					}				
 				}) ;
 				return;
 			}
@@ -206,7 +226,7 @@ public abstract class TestCase {
 	private class VUser implements Runnable {
 
 		private TestCase test;
-
+		
 		public VUser(TestCase baseTest) {
 			test = baseTest;
 		}
@@ -215,37 +235,25 @@ public abstract class TestCase {
 			StepTracker tracker = new StepTracker(); 
 			tracker.metric = test.metric;
 			test.tracker.set(tracker);
-			while(true) {
-				if(Instant.now().isAfter(config.testEndTime)) {
+			for(int i=0;i<config.iterations;i++) {
+				if(test.stopTest) break;
+				try {
+					execCounter.incrementAndGet();
+					tracker.startStep("MAIN");
+					test.execute();
+					tracker.endStep("MAIN");
+				} catch (FatalException fe) {
+					fe.printStackTrace(System.err);
+					tracker.endStep("MAIN",STATUS.FAILURE);
 					break;
-				} else if(config.iterations > 0 && metric.iterationCounter.get() >= config.iterations * config.vUsers ) {
-					break;
-				} else {
-					try {
-						tracker.startStep("MAIN");
-						test.execute();
-						tracker.endStep("MAIN");
-					} catch (FatalException fe) {
-						fe.printStackTrace(System.err);
-						tracker.endStep("MAIN",STATUS.FAILURE);
-						break;
-					} catch (Exception e) {
-						e.printStackTrace(System.err);
-						tracker.endStep("MAIN",STATUS.FAILURE);
-					} 
-					if(config.functionalMode)break;
-				}				
-			}
-			int activeThreads = test.threadCounter.decrementAndGet();
-			if(activeThreads <= 0) {
-				try {					
-					metric.printSummary();					
-				} catch (IOException e) {
+				} catch (Exception e) {
 					e.printStackTrace(System.err);
-				}
-				executor.shutdown();
-				metric.stopPrintTimer();				
+					tracker.endStep("MAIN",STATUS.FAILURE);
+				} 
+				
+				if(config.functionalMode)break;
 			}
+			runningThreads.decrementAndGet();
 		}
 	}
 
@@ -276,7 +284,7 @@ public abstract class TestCase {
 			config.printMetric = Integer.parseInt(cmd.getOptionValue("printMetric","0"));
 			config.vUsers = Integer.parseInt(cmd.getOptionValue("vusers","1"));
 			config.duration = Integer.parseInt(cmd.getOptionValue("duration","0"));		
-			config.iterations = Integer.parseInt(cmd.getOptionValue("iterations","0"));
+			config.iterations = Integer.parseInt(cmd.getOptionValue("iterations",Integer.toString(Integer.MAX_VALUE)));
 			config.rampRate = Integer.parseInt(cmd.getOptionValue("rampRate","0"));
 			config.throughput = Integer.parseInt(cmd.getOptionValue("throughput","0"));
 			config.connectTimeout = Duration.ofSeconds(Integer.parseInt(cmd.getOptionValue("connectTimeout","10")));
@@ -284,7 +292,7 @@ public abstract class TestCase {
 			config.proxyPort = cmd.getOptionValue("proxyPort");
 			config.authUser = cmd.getOptionValue("authUser");
 			config.authPassword = cmd.getOptionValue("authPassword");
-			if(config.iterations == 0 && config.duration == 0)config.functionalMode = true;
+			if(config.iterations == Integer.MAX_VALUE && config.duration == 0)config.functionalMode = true;
 			if(config.duration > 0) {
 				config.testEndTime = config.testStartTime.plusSeconds(config.duration);
 			} else {
@@ -345,11 +353,37 @@ public abstract class TestCase {
 				sleepTime = 1/config.rampRate;
 			} 
 			for (int i = 0; i < config.vUsers; i++) {
-				threadCounter.incrementAndGet();
+				runningThreads.incrementAndGet();
 				VUser vUser = new VUser(this);
 				executor.execute(vUser);
 				Thread.sleep(sleepTime * 1000);
 			}
+
+			while(!stopTest) {
+				Thread.sleep(500);
+				if(Instant.now().isAfter(config.testEndTime)) {
+					stopTest=true;
+				}
+				if(runningThreads.get() == 0) {
+					stopTest=true;
+				}
+			}
+			
+			executor.shutdown();
+			while(!executor.isTerminated()) {
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			metric.stopPrintTimer();
+			try {					
+				metric.printSummary();
+			} catch (IOException e) {
+				e.printStackTrace(System.err);
+			}
+			 
 		} catch (Exception e) {
 			e.printStackTrace(System.err);
 		}		
