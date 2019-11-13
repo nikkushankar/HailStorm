@@ -1,5 +1,6 @@
 package io.funxion.hailstorm;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.CookieManager;
@@ -20,7 +21,9 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -41,28 +44,47 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.math3.stat.descriptive.SynchronizedSummaryStatistics;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartUtils;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
 
 public abstract class TestCase {
 	private boolean stopTest=false;
+	private String pid = Long.valueOf(ProcessHandle.current().pid()).toString();
 	private static AtomicInteger execCounter = new AtomicInteger();
 	private AtomicInteger runningThreads = new AtomicInteger();
-	protected static HttpClient httpClient = null;	
+	protected static HttpClient httpClient = null;
+	private class GraphData{
+		public long elapsedTime,numExecutions,numErrors,vUsers;
+		public double mainResponseTime;		
+	}
 	private class Metric {
 		private Map<String, SynchronizedSummaryStatistics> totalStats = new HashMap<>();
 		private Map<String, SynchronizedSummaryStatistics> runningStats = new HashMap<>();
+		private List<GraphData> graphDataList = new ArrayList<>();
 		private AtomicInteger failureCounter = new AtomicInteger();
 		private AtomicInteger runningFailureCounter = new AtomicInteger();
 		private AtomicInteger iterationCounter = new AtomicInteger();
+		private long testDuration = 0;
 		private Timer printTimer = null; 
 		private void printMetric() {
+			GraphData gd = new GraphData();
+			graphDataList.add(gd);
+			gd.elapsedTime = testDuration;
+			testDuration = testDuration + config.printMetric;
 			StringBuilder sb = new StringBuilder();
         	long numIteration = 0;
         	synchronized (runningStats){
 	        	if(runningStats.get("MAIN") != null) {
 	        		numIteration = runningStats.get("MAIN").getN();
+	        		gd.mainResponseTime = runningStats.get("MAIN").getMean();
 	        	}
 	        	int numErrors = runningFailureCounter.getAndSet(0);
-	        	sb.append("EXECUTIONS=").append(numIteration + numErrors);		        	
+	        	sb.append("EXECUTIONS=").append(numIteration + numErrors);	
+	        	gd.numExecutions = numIteration + numErrors;
 	        	sb.append(" : ").append("ERRORS=").append(numErrors);
 	        	runningStats.forEach((key,value)->{
 					sb.append(String.format(" : %s : %5.2f",key,value.getMean()));
@@ -113,6 +135,27 @@ public abstract class TestCase {
 				System.out.printf("STEP:%-12s%12s(ms)%12s\n",step.stepName,step.timeTaken.toMillis(),step.status);
 			}
 		}
+		public void printGraph() throws IOException{
+			// Prepare the data set
+			XYSeries executions = new XYSeries("Executions");
+			XYSeries mean = new XYSeries("Total Mean");
+			
+			for (GraphData graphData : graphDataList) {
+				executions.add(graphData.elapsedTime,graphData.numExecutions);
+				mean.add(graphData.elapsedTime,graphData.mainResponseTime);
+			}
+		    final XYSeriesCollection seriesCollection = new XYSeriesCollection();
+		    seriesCollection.addSeries(executions);
+		    seriesCollection.addSeries(mean);
+		    //Create the chart
+		    JFreeChart chart = ChartFactory.createXYLineChart(
+		        "Load Test Report", "Time", "", seriesCollection,
+		        PlotOrientation.VERTICAL, true, true, true);
+
+		    String chartName = pid + ".png";
+		    System.out.printf("\nGenerating Chart %s\n%s",chartName,"-".repeat(80));
+		    ChartUtils.saveChartAsPNG(new File(chartName), chart, 800, 600);
+		}
 		public void printSummary() throws IOException {
 			if(!config.functionalMode) {
 				printMetric();
@@ -134,7 +177,10 @@ public abstract class TestCase {
 					.withZone(ZoneId.systemDefault());				                     				
 			Instant currentTime = Instant.now();
 			Duration testDuration = Duration.between(config.testStartTime,currentTime);
-			System.out.printf("%s\nTEST_START:%s\nTEST_END:%s\nDURATION:%d Seconds\n%s","-".repeat(80),formatter.format(config.testStartTime),formatter.format(currentTime),testDuration.toSeconds(),"-".repeat(80));			
+			System.out.printf("%s\nTEST_START:%s\nTEST_END:%s\nDURATION:%d Seconds\n%s","-".repeat(80),formatter.format(config.testStartTime),formatter.format(currentTime),testDuration.toSeconds(),"-".repeat(80));
+			if(config.gengraph) {
+				printGraph();
+			}
 		}
 	}
 	private Metric metric = new Metric();
@@ -204,8 +250,8 @@ public abstract class TestCase {
 		public Duration connectTimeout = Duration.ofSeconds(10);
 		public String authUser, authPassword;
 		public String proxyHost, proxyPort;
-		public boolean functionalMode=false,verbose=false;
-		public Instant testEndTime,testStartTime = Instant.now();
+		public boolean functionalMode=false,verbose=false, gengraph=false;
+		public Instant testEndTime,testStartTime = Instant.now();		
 		
 		@Override
 		public String toString() {
@@ -217,7 +263,7 @@ public abstract class TestCase {
 					.append(", authPassword=").append(authPassword).append(", proxyHost=").append(proxyHost)
 					.append(", proxyPort=").append(proxyPort).append(", functionalMode=").append(functionalMode)
 					.append(", verbose=").append(verbose).append(", throughput=").append(throughput)
-					.append(", rampRate=").append(rampRate)
+					.append(", gengraph=").append(gengraph).append(", rampRate=").append(rampRate)
 					.append(", testEndTime=").append(testEndTime).append("]");
 			return builder.toString();
 		}				
@@ -271,7 +317,10 @@ public abstract class TestCase {
 		options.addOption(new Option("au", "authUser", true, "UserName used for Authentication"));
 		options.addOption(new Option("ap", "authPassword", true, "Password for Authentication"));
 		options.addOption(new Option("pm", "printMetric", true, "Print Current Metric every N seconds"));
-		options.addOption(new Option("th", "throughput", true, "Max Throughput"));
+		options.addOption(new Option("tp", "throughput", true, "Max Throughput"));
+		options.addOption(new Option("o", "outputFolder", true, "Output Folder"));
+		options.addOption(new Option("lp", "loadPlan", true, "Load Plan sec:vusers,sec:vusers,..."));
+		options.addOption(new Option("gg", "gengraph", false, "Generate Graph"));
 		options.addOption(new Option("h", "help", false, "Print Help"));
 		options.addOption(new Option("x", "verbose", false, "Verbose Output for debugging"));
 
@@ -279,8 +328,11 @@ public abstract class TestCase {
 			CommandLineParser parser = new DefaultParser();			
 			CommandLine cmd = parser.parse(options, args);
 			
+			if(cmd.hasOption("tp")) System.out.println("Throughput Controller not yet implemented");
+			if(cmd.hasOption("lp")) System.out.println("Load Plan not yet implemented");
 			if(cmd.hasOption("h")) throw new ParseException("Invoked in Help Mode");
 			if(cmd.hasOption("x")) config.verbose = true; 
+			if(cmd.hasOption("gg")) config.gengraph = true; 
 			config.printMetric = Integer.parseInt(cmd.getOptionValue("printMetric","0"));
 			config.vUsers = Integer.parseInt(cmd.getOptionValue("vusers","1"));
 			config.duration = Integer.parseInt(cmd.getOptionValue("duration","0"));		
@@ -346,7 +398,11 @@ public abstract class TestCase {
 		config = getConfiguration(args);
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 		    try {
-		    	if(!stopTest) metric.printSummary();
+		    	if(!stopTest) {
+		    		stopTest=true;
+		    		executor.shutdownNow();
+		    		metric.printSummary();
+		    	}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

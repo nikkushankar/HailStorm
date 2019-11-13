@@ -34,17 +34,17 @@ public class Test1 extends TestCase{
 	
 	private void step1() throws Exception {
 		HttpRequest request1 = HttpRequest.newBuilder()
-		        .uri(URI.create("https://jsonplaceholder.typicode.com/todos/1"))
+		        .uri(URI.create("http://localhost:7070/rest/Quote/APPL"))
 				.GET()   
 		        .build();
 				HttpResponse<String> response1 = httpClient.send(request1, BodyHandlers.ofString());
 				JsonReader jsonReader = Json.createReader(new StringReader(response1.body()));
 				JsonObject object = jsonReader.readObject();
 				jsonReader.close();
-				debug("Book Title : "+object.getString("title"));
+				/*debug("Book Title : "+object.getString("identifier"));
 				if(!object.getString("title").contains("delectus")) {
 					throw new Exception("Incorrect String");
-				}
+				}*/
 				debug("HTTP Status Code step1 :"+response1.statusCode());
 				if(response1.statusCode() != 200) {
 					endStepWithError("STEP1");
@@ -54,7 +54,7 @@ public class Test1 extends TestCase{
 	}
 	private void step2() throws Exception {
 		HttpRequest request2 = HttpRequest.newBuilder()
-		        .uri(URI.create("https://jsonplaceholder.typicode.com/todos/1"))
+		        .uri(URI.create("http://localhost:7070/rest/Quote/IBM"))
 				.GET()   
 		        .build();
 				HttpResponse<String> response2 = httpClient.send(request2, BodyHandlers.ofString());
