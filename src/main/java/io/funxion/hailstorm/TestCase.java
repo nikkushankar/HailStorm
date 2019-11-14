@@ -58,8 +58,8 @@ public abstract class TestCase {
 	private AtomicInteger runningThreads = new AtomicInteger();
 	protected static HttpClient httpClient = null;
 	private class GraphData{
-		public long elapsedTime,numExecutions,numErrors,vUsers;
-		public double mainResponseTime;		
+		public long elapsedTime,numExecutions,numErrors,vUsers;		
+		public Map<String,Double> stepResponse = new HashMap<>();
 	}
 	private class Metric {
 		private Map<String, SynchronizedSummaryStatistics> totalStats = new HashMap<>();
@@ -79,14 +79,16 @@ public abstract class TestCase {
         	long numIteration = 0;
         	synchronized (runningStats){
 	        	if(runningStats.get("MAIN") != null) {
-	        		numIteration = runningStats.get("MAIN").getN();
-	        		gd.mainResponseTime = runningStats.get("MAIN").getMean();
+	        		numIteration = runningStats.get("MAIN").getN();	        		
 	        	}
 	        	int numErrors = runningFailureCounter.getAndSet(0);
 	        	sb.append("EXECUTIONS=").append(numIteration + numErrors);	
 	        	gd.numExecutions = numIteration + numErrors;
+	        	gd.vUsers = runningThreads.get();
+	        	gd.numErrors = numErrors;
 	        	sb.append(" : ").append("ERRORS=").append(numErrors);
 	        	runningStats.forEach((key,value)->{
+	        		gd.stepResponse.put(key, value.getMean());
 					sb.append(String.format(" : %s : %5.2f",key,value.getMean()));
 					});
 	        	if(runningStats.size() > 0) sb.deleteCharAt(sb.length()-1);
@@ -136,25 +138,47 @@ public abstract class TestCase {
 			}
 		}
 		public void printGraph() throws IOException{
+		    System.out.printf("\nGenerating Summary Chart \n%s","-".repeat(80));
 			// Prepare the data set
 			XYSeries executions = new XYSeries("Executions");
-			XYSeries mean = new XYSeries("Total Mean");
-			
+			XYSeries numErrors = new XYSeries("Errors");
+			XYSeries runningUsers = new XYSeries("VUsers");
+			Map<String,XYSeries> stepResponseMean = new HashMap<>();
 			for (GraphData graphData : graphDataList) {
 				executions.add(graphData.elapsedTime,graphData.numExecutions);
-				mean.add(graphData.elapsedTime,graphData.mainResponseTime);
+				numErrors.add(graphData.elapsedTime,graphData.numErrors);
+				runningUsers.add(graphData.elapsedTime,graphData.vUsers);
+				graphData.stepResponse.forEach((key,value)->{		
+					XYSeries series = stepResponseMean.get(key);
+					if(series == null) series = new XYSeries(key);
+					stepResponseMean.put(key, series);
+					series.add(graphData.elapsedTime,value);
+					});			
 			}
-		    final XYSeriesCollection seriesCollection = new XYSeriesCollection();
-		    seriesCollection.addSeries(executions);
-		    seriesCollection.addSeries(mean);
+		    final XYSeriesCollection respSeriesCollection = new XYSeriesCollection();
+		    stepResponseMean.forEach((key,value)->{	
+		    	respSeriesCollection.addSeries(value);
+		    });
 		    //Create the chart
-		    JFreeChart chart = ChartFactory.createXYLineChart(
-		        "Load Test Report", "Time", "", seriesCollection,
+		    JFreeChart chartResp = ChartFactory.createXYLineChart("Response Time Report", "Time", "", respSeriesCollection,
 		        PlotOrientation.VERTICAL, true, true, true);
+		    ChartUtils.saveChartAsPNG(new File(pid + "-resptime.png"), chartResp, 800, 600);
 
-		    String chartName = pid + ".png";
-		    System.out.printf("\nGenerating Chart %s\n%s",chartName,"-".repeat(80));
-		    ChartUtils.saveChartAsPNG(new File(chartName), chart, 800, 600);
+		    final XYSeriesCollection execCollection = new XYSeriesCollection();
+		    execCollection.addSeries(executions);
+		    execCollection.addSeries(numErrors);
+		  
+		    JFreeChart chartExecutions = ChartFactory.createXYLineChart("Executions Report", "Time", "", execCollection,
+		        PlotOrientation.VERTICAL, true, true, true);
+		    ChartUtils.saveChartAsPNG(new File(pid + "-executions.png"), chartExecutions, 800, 600);
+
+		    final XYSeriesCollection vUsersCollection = new XYSeriesCollection();
+		    vUsersCollection.addSeries(runningUsers);
+		  
+		    JFreeChart chartVUsers = ChartFactory.createXYLineChart("VUser Report", "Time", "", vUsersCollection,
+		        PlotOrientation.VERTICAL, true, true, true);
+		    ChartUtils.saveChartAsPNG(new File(pid + "-vusers.png"), chartVUsers, 800, 600);
+  
 		}
 		public void printSummary() throws IOException {
 			if(!config.functionalMode) {

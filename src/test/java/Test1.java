@@ -24,12 +24,12 @@ public class Test1 extends TestCase{
 		step1();
 		endStep("STEP1");
 		
-		Thread.sleep(200);
+		Thread.sleep(20);
 		
 		startStep("STEP2");
 		step2();
 		endStep("STEP2");
-		Thread.sleep(200);
+		Thread.sleep(20);
 	}
 	
 	private void step1() throws Exception {
