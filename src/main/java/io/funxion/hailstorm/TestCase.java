@@ -1,7 +1,9 @@
 package io.funxion.hailstorm;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.Authenticator;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -30,6 +32,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.LogManager;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -52,11 +55,34 @@ import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 
 public abstract class TestCase {
+
 	private boolean stopTest=false;
 	private String pid = Long.valueOf(ProcessHandle.current().pid()).toString();
 	private static AtomicInteger execCounter = new AtomicInteger();
 	private AtomicInteger runningThreads = new AtomicInteger();
 	protected static HttpClient httpClient = null;
+	private class Logger{
+		PrintWriter report;
+		PrintWriter errorLog;
+		public Logger() {
+			try {
+				report = new PrintWriter(config.outputFolder+"/"+pid + "-report.txt");
+				errorLog = new PrintWriter(config.outputFolder+"/"+pid + "-error.txt");
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+		public void error(String msg) {
+			errorLog.write(msg);
+			errorLog.flush();
+		}
+		public void info(String msg) {
+			System.out.print(msg);
+			report.write(msg);
+			report.flush();
+		}
+	}
+	private Logger LOG;
 	private class GraphData{
 		public long elapsedTime,numExecutions,numErrors,vUsers;		
 		public Map<String,Double> stepResponse = new HashMap<>();
@@ -94,11 +120,11 @@ public abstract class TestCase {
 	        	if(runningStats.size() > 0) sb.deleteCharAt(sb.length()-1);
 	        	runningStats.clear();
         	}
-        	System.out.println(sb);
+        	LOG.info(sb.append("\n").toString());
             
 		}
 		public void startPrintTimer(int seconds) {
-			System.out.printf("-".repeat(80).concat("\n"));
+			LOG.info(String.format("-".repeat(80).concat("\n")));
 			printTimer = new java.util.Timer();
 			printTimer.schedule(new TimerTask(){
 		        @Override
@@ -134,11 +160,12 @@ public abstract class TestCase {
 				}
 			}
 			if(config.functionalMode) {
-				System.out.printf("STEP:%-12s%12s(ms)%12s\n",step.stepName,step.timeTaken.toMillis(),step.status);
+				LOG.info(String.format("STEP:%-12s%12s(ms)%12s\n",step.stepName,step.timeTaken.toMillis(),step.status));
 			}
 		}
 		public void printGraph() throws IOException{
-		    System.out.printf("\nGenerating Summary Chart \n%s","-".repeat(80));
+			new File(config.outputFolder).mkdir();
+		    LOG.info(String.format("\nGenerating Summary Chart \n%s","-".repeat(80)));
 			// Prepare the data set
 			XYSeries executions = new XYSeries("Executions");
 			XYSeries numErrors = new XYSeries("Errors");
@@ -160,24 +187,24 @@ public abstract class TestCase {
 		    	respSeriesCollection.addSeries(value);
 		    });
 		    //Create the chart
-		    JFreeChart chartResp = ChartFactory.createXYLineChart("Response Time Report", "Time", "", respSeriesCollection,
+		    JFreeChart chartResp = ChartFactory.createXYLineChart("Response Time Report", "Time (sec)", " Time (msec)", respSeriesCollection,
 		        PlotOrientation.VERTICAL, true, true, true);
-		    ChartUtils.saveChartAsPNG(new File(pid + "-resptime.png"), chartResp, 800, 600);
+		    ChartUtils.saveChartAsPNG(new File(config.outputFolder+"/"+pid + "-resptime.png"), chartResp, 800, 600);
 
 		    final XYSeriesCollection execCollection = new XYSeriesCollection();
 		    execCollection.addSeries(executions);
 		    execCollection.addSeries(numErrors);
 		  
-		    JFreeChart chartExecutions = ChartFactory.createXYLineChart("Executions Report", "Time", "", execCollection,
+		    JFreeChart chartExecutions = ChartFactory.createXYLineChart("Executions Report", "Time", "Count", execCollection,
 		        PlotOrientation.VERTICAL, true, true, true);
-		    ChartUtils.saveChartAsPNG(new File(pid + "-executions.png"), chartExecutions, 800, 600);
+		    ChartUtils.saveChartAsPNG(new File(config.outputFolder+"/"+pid + "-executions.png"), chartExecutions, 800, 600);
 
 		    final XYSeriesCollection vUsersCollection = new XYSeriesCollection();
 		    vUsersCollection.addSeries(runningUsers);
 		  
-		    JFreeChart chartVUsers = ChartFactory.createXYLineChart("VUser Report", "Time", "", vUsersCollection,
+		    JFreeChart chartVUsers = ChartFactory.createXYLineChart("VUser Report", "Time", "Num Users", vUsersCollection,
 		        PlotOrientation.VERTICAL, true, true, true);
-		    ChartUtils.saveChartAsPNG(new File(pid + "-vusers.png"), chartVUsers, 800, 600);
+		    ChartUtils.saveChartAsPNG(new File(config.outputFolder+"/"+pid + "-vusers.png"), chartVUsers, 800, 600);
   
 		}
 		public void printSummary() throws IOException {
@@ -185,23 +212,23 @@ public abstract class TestCase {
 				printMetric();
 				SynchronizedSummaryStatistics mainStat = totalStats.remove("MAIN");
 				if(totalStats.size() > 0 ) {
-					System.out.printf("-".repeat(80).concat("\n"));
+					LOG.info(String.format("-".repeat(80).concat("\n")));
 					totalStats.forEach((key,value)->{
-						System.out.printf("STEP:%-12s, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",key,value.getMin(),value.getMax(),value.getMean());
+						LOG.info(String.format("STEP:%-12s, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",key,value.getMin(),value.getMax(),value.getMean()));
 						});
-					System.out.printf("-".repeat(80).concat("\n"));
+					LOG.info(String.format("-".repeat(80).concat("\n")));
 				}
 				if(mainStat != null) {
-					System.out.printf("SUCCESSFUL_EXECUTION:%d, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",mainStat.getN(),mainStat.getMin(),mainStat.getMax(),mainStat.getMean());				
+					LOG.info(String.format("SUCCESSFUL_EXECUTION:%d, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",mainStat.getN(),mainStat.getMin(),mainStat.getMax(),mainStat.getMean()));				
 				}
-				System.out.printf("FAILED_EXECUTION:%d,FAILED_PERCENTAGE %.2f\n",failureCounter.get(),Double.valueOf(failureCounter.get()*100/iterationCounter.get()));
+				LOG.info(String.format("FAILED_EXECUTION:%d,FAILED_PERCENTAGE %.2f\n",failureCounter.get(),Double.valueOf(failureCounter.get()*100/iterationCounter.get())));
 			}
 			DateTimeFormatter formatter = DateTimeFormatter
 					.ofLocalizedDateTime(FormatStyle.MEDIUM)
 					.withZone(ZoneId.systemDefault());				                     				
 			Instant currentTime = Instant.now();
 			Duration testDuration = Duration.between(config.testStartTime,currentTime);
-			System.out.printf("%s\nTEST_START:%s\nTEST_END:%s\nDURATION:%d Seconds\n%s","-".repeat(80),formatter.format(config.testStartTime),formatter.format(currentTime),testDuration.toSeconds(),"-".repeat(80));
+			LOG.info(String.format("%s\nTEST_START:%s\nTEST_END:%s\nDURATION:%d Seconds\n%s","-".repeat(80),formatter.format(config.testStartTime),formatter.format(currentTime),testDuration.toSeconds(),"-".repeat(80)));
 			if(config.gengraph) {
 				printGraph();
 			}
@@ -247,7 +274,7 @@ public abstract class TestCase {
 					try {
 						metric.addStep(step);
 					} catch (IOException e) {
-						e.printStackTrace(System.err);
+						e.printStackTrace(LOG.errorLog);
 					}				
 				}) ;
 				return;
@@ -260,9 +287,9 @@ public abstract class TestCase {
 			try {
 				metric.addStep(step);
 			} catch (IOException e) {
-				e.printStackTrace(System.err);
+				e.printStackTrace(LOG.errorLog);
 			}
-			//System.out.printf("StepName:%s,Thread:%d,TimeTaken:%d\n",stepName,Thread.currentThread().getId(),currentStep.timeTaken.toMillis());
+			//LOG.info(String.format("StepName:%s,Thread:%d,TimeTaken:%d\n",stepName,Thread.currentThread().getId(),currentStep.timeTaken.toMillis());
 		}
 		public void endStep(String stepName) {
 			endStep(stepName,STATUS.SUCCESS);			
@@ -272,7 +299,7 @@ public abstract class TestCase {
 		public int vUsers, iterations, duration,rampRate,throughput;
 		public int printMetric;
 		public Duration connectTimeout = Duration.ofSeconds(10);
-		public String authUser, authPassword;
+		public String authUser, authPassword,outputFolder;
 		public String proxyHost, proxyPort;
 		public boolean functionalMode=false,verbose=false, gengraph=false;
 		public Instant testEndTime,testStartTime = Instant.now();		
@@ -288,7 +315,7 @@ public abstract class TestCase {
 					.append(", proxyPort=").append(proxyPort).append(", functionalMode=").append(functionalMode)
 					.append(", verbose=").append(verbose).append(", throughput=").append(throughput)
 					.append(", gengraph=").append(gengraph).append(", rampRate=").append(rampRate)
-					.append(", testEndTime=").append(testEndTime).append("]");
+					.append(", testEndTime=").append(testEndTime).append(", outputFolder=").append(outputFolder).append("]");
 			return builder.toString();
 		}				
 	}
@@ -313,11 +340,11 @@ public abstract class TestCase {
 					test.execute();
 					tracker.endStep("MAIN");
 				} catch (FatalException fe) {
-					fe.printStackTrace(System.err);
+					fe.printStackTrace(LOG.errorLog);
 					tracker.endStep("MAIN",STATUS.FAILURE);
 					break;
 				} catch (Exception e) {
-					e.printStackTrace(System.err);
+					e.printStackTrace(LOG.errorLog);
 					tracker.endStep("MAIN",STATUS.FAILURE);
 				} 
 				
@@ -368,6 +395,7 @@ public abstract class TestCase {
 			config.proxyPort = cmd.getOptionValue("proxyPort");
 			config.authUser = cmd.getOptionValue("authUser");
 			config.authPassword = cmd.getOptionValue("authPassword");
+			config.outputFolder = cmd.getOptionValue("outputFolder");
 			if(config.iterations == Integer.MAX_VALUE && config.duration == 0)config.functionalMode = true;
 			if(config.duration > 0) {
 				config.testEndTime = config.testStartTime.plusSeconds(config.duration);
@@ -381,7 +409,6 @@ public abstract class TestCase {
 			formatter.printHelp("TestBench", options);
 			System.exit(1);
 		}		
-		System.out.printf("%s\n%s\n","-".repeat(80),config.toString());
 		return config;
 	}
 
@@ -411,15 +438,18 @@ public abstract class TestCase {
 
 	protected abstract void execute() throws Exception;
 	protected void init() throws Exception{
+		LOG = new Logger();
+		LOG.info(String.format("%s\n%s\n","-".repeat(80),config.toString()));
 		if(httpClient == null) {
 			httpClient = createClient();
 		}
 		if(config.printMetric > 0) {
 			metric.startPrintTimer(config.printMetric);
-		}
+		}				
 	}
 	public final void start(String[] args) {
 		config = getConfiguration(args);
+		
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 		    try {
 		    	if(!stopTest) {
@@ -467,11 +497,11 @@ public abstract class TestCase {
 			try {					
 				metric.printSummary();
 			} catch (IOException e) {
-				e.printStackTrace(System.err);
+				e.printStackTrace(LOG.errorLog);
 			}
 			 
 		} catch (Exception e) {
-			e.printStackTrace(System.err);
+			e.printStackTrace(LOG.errorLog);
 		}		
 	}
 
