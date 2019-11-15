@@ -28,6 +28,12 @@ public class MockService extends NanoHTTPD  {
 		
 		Response response = newFixedLengthResponse(jsonBuilder.build().toString()); 
 	    response.addHeader("Content-Type","application/json");
+	    try {
+			Thread.sleep(50);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	    return response;
 	}
 }

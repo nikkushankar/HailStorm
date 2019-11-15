@@ -1,7 +1,6 @@
 package io.funxion.hailstorm;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Authenticator;
@@ -32,7 +31,6 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.LogManager;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -61,28 +59,23 @@ public abstract class TestCase {
 	private static AtomicInteger execCounter = new AtomicInteger();
 	private AtomicInteger runningThreads = new AtomicInteger();
 	protected static HttpClient httpClient = null;
-	private class Logger{
-		PrintWriter report;
-		PrintWriter errorLog;
-		public Logger() {
-			try {
-				report = new PrintWriter(config.outputFolder+"/"+pid + "-report.txt");
-				errorLog = new PrintWriter(config.outputFolder+"/"+pid + "-error.txt");
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			}
-		}
-		public void error(String msg) {
-			errorLog.write(msg);
-			errorLog.flush();
-		}
-		public void info(String msg) {
-			System.out.print(msg);
-			report.write(msg);
-			report.flush();
+	protected PrintWriter report;
+	protected PrintWriter errorLog;
+	
+	protected final void error(String msg) {
+		errorLog.write(msg);
+		errorLog.flush();
+	}
+	protected final void info(String msg) {
+		System.out.print(msg);
+		report.write(msg);
+		report.flush();
+	}
+	protected final void debug(String message) {
+		if(config.verbose) {
+			System.out.println(message);
 		}
 	}
-	private Logger LOG;
 	private class GraphData{
 		public long elapsedTime,numExecutions,numErrors,vUsers;		
 		public Map<String,Double> stepResponse = new HashMap<>();
@@ -120,11 +113,11 @@ public abstract class TestCase {
 	        	if(runningStats.size() > 0) sb.deleteCharAt(sb.length()-1);
 	        	runningStats.clear();
         	}
-        	LOG.info(sb.append("\n").toString());
+        	info(sb.append("\n").toString());
             
 		}
 		public void startPrintTimer(int seconds) {
-			LOG.info(String.format("-".repeat(80).concat("\n")));
+			info(String.format("-".repeat(80).concat("\n")));
 			printTimer = new java.util.Timer();
 			printTimer.schedule(new TimerTask(){
 		        @Override
@@ -160,12 +153,11 @@ public abstract class TestCase {
 				}
 			}
 			if(config.functionalMode) {
-				LOG.info(String.format("STEP:%-12s%12s(ms)%12s\n",step.stepName,step.timeTaken.toMillis(),step.status));
+				info(String.format("STEP:%-12s%12s(ms)%12s\n",step.stepName,step.timeTaken.toMillis(),step.status));
 			}
 		}
 		public void printGraph() throws IOException{
-			new File(config.outputFolder).mkdir();
-		    LOG.info(String.format("\nGenerating Summary Chart \n%s","-".repeat(80)));
+			info(String.format("Generating Summary Chart in the folder %s\n%s\n",config.outputFolder,"-".repeat(80)));
 			// Prepare the data set
 			XYSeries executions = new XYSeries("Executions");
 			XYSeries numErrors = new XYSeries("Errors");
@@ -212,23 +204,23 @@ public abstract class TestCase {
 				printMetric();
 				SynchronizedSummaryStatistics mainStat = totalStats.remove("MAIN");
 				if(totalStats.size() > 0 ) {
-					LOG.info(String.format("-".repeat(80).concat("\n")));
+					info(String.format("-".repeat(80).concat("\n")));
 					totalStats.forEach((key,value)->{
-						LOG.info(String.format("STEP:%-12s, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",key,value.getMin(),value.getMax(),value.getMean()));
+						info(String.format("STEP:%-12s, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",key,value.getMin(),value.getMax(),value.getMean()));
 						});
-					LOG.info(String.format("-".repeat(80).concat("\n")));
+					info(String.format("-".repeat(80).concat("\n")));
 				}
 				if(mainStat != null) {
-					LOG.info(String.format("SUCCESSFUL_EXECUTION:%d, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",mainStat.getN(),mainStat.getMin(),mainStat.getMax(),mainStat.getMean()));				
+					info(String.format("SUCCESSFUL_EXECUTION:%d, MIN:%12.2f, MAX:%12.2f, MEAN:%12.2f\n",mainStat.getN(),mainStat.getMin(),mainStat.getMax(),mainStat.getMean()));				
 				}
-				LOG.info(String.format("FAILED_EXECUTION:%d,FAILED_PERCENTAGE %.2f\n",failureCounter.get(),Double.valueOf(failureCounter.get()*100/iterationCounter.get())));
+				info(String.format("FAILED_EXECUTION:%d,FAILED_PERCENTAGE %.2f\n",failureCounter.get(),Double.valueOf(failureCounter.get()*100/iterationCounter.get())));
 			}
 			DateTimeFormatter formatter = DateTimeFormatter
 					.ofLocalizedDateTime(FormatStyle.MEDIUM)
 					.withZone(ZoneId.systemDefault());				                     				
 			Instant currentTime = Instant.now();
 			Duration testDuration = Duration.between(config.testStartTime,currentTime);
-			LOG.info(String.format("%s\nTEST_START:%s\nTEST_END:%s\nDURATION:%d Seconds\n%s","-".repeat(80),formatter.format(config.testStartTime),formatter.format(currentTime),testDuration.toSeconds(),"-".repeat(80)));
+			info(String.format("%s\nTEST_START:%s\nTEST_END:%s\nDURATION:%d Seconds\n%s\n","-".repeat(80),formatter.format(config.testStartTime),formatter.format(currentTime),testDuration.toSeconds(),"-".repeat(80)));
 			if(config.gengraph) {
 				printGraph();
 			}
@@ -274,7 +266,7 @@ public abstract class TestCase {
 					try {
 						metric.addStep(step);
 					} catch (IOException e) {
-						e.printStackTrace(LOG.errorLog);
+						e.printStackTrace(errorLog);
 					}				
 				}) ;
 				return;
@@ -287,9 +279,9 @@ public abstract class TestCase {
 			try {
 				metric.addStep(step);
 			} catch (IOException e) {
-				e.printStackTrace(LOG.errorLog);
+				e.printStackTrace(errorLog);
 			}
-			//LOG.info(String.format("StepName:%s,Thread:%d,TimeTaken:%d\n",stepName,Thread.currentThread().getId(),currentStep.timeTaken.toMillis());
+			//info(String.format("StepName:%s,Thread:%d,TimeTaken:%d\n",stepName,Thread.currentThread().getId(),currentStep.timeTaken.toMillis());
 		}
 		public void endStep(String stepName) {
 			endStep(stepName,STATUS.SUCCESS);			
@@ -340,11 +332,11 @@ public abstract class TestCase {
 					test.execute();
 					tracker.endStep("MAIN");
 				} catch (FatalException fe) {
-					fe.printStackTrace(LOG.errorLog);
+					fe.printStackTrace(errorLog);
 					tracker.endStep("MAIN",STATUS.FAILURE);
 					break;
 				} catch (Exception e) {
-					e.printStackTrace(LOG.errorLog);
+					e.printStackTrace(errorLog);
 					tracker.endStep("MAIN",STATUS.FAILURE);
 				} 
 				
@@ -395,7 +387,7 @@ public abstract class TestCase {
 			config.proxyPort = cmd.getOptionValue("proxyPort");
 			config.authUser = cmd.getOptionValue("authUser");
 			config.authPassword = cmd.getOptionValue("authPassword");
-			config.outputFolder = cmd.getOptionValue("outputFolder");
+			config.outputFolder = cmd.getOptionValue("outputFolder","report");
 			if(config.iterations == Integer.MAX_VALUE && config.duration == 0)config.functionalMode = true;
 			if(config.duration > 0) {
 				config.testEndTime = config.testStartTime.plusSeconds(config.duration);
@@ -413,11 +405,7 @@ public abstract class TestCase {
 	}
 
 	private ThreadLocal<StepTracker> tracker = new ThreadLocal<StepTracker>();
-	protected final void debug(String message) {
-		if(config.verbose) {
-			System.out.println(message);
-		}
-	}
+	
 	protected void Assert(Object actual,Object expected,String message) throws Exception {
 		if(!actual.toString().equalsIgnoreCase(expected.toString())) {
 			throw new Exception(String.format("%s,Actual:%s,Expected:%s",message,actual.toString(),expected.toString()));
@@ -438,8 +426,10 @@ public abstract class TestCase {
 
 	protected abstract void execute() throws Exception;
 	protected void init() throws Exception{
-		LOG = new Logger();
-		LOG.info(String.format("%s\n%s\n","-".repeat(80),config.toString()));
+		new File(config.outputFolder).mkdir();
+		report = new PrintWriter(config.outputFolder+"/"+pid + "-report.txt");
+		errorLog = new PrintWriter(config.outputFolder+"/"+pid + "-error.txt");
+		info(String.format("%s\n%s\n","-".repeat(80),config.toString()));
 		if(httpClient == null) {
 			httpClient = createClient();
 		}
@@ -447,20 +437,41 @@ public abstract class TestCase {
 			metric.startPrintTimer(config.printMetric);
 		}				
 	}
+	protected void shutdown() {
+		try {					
+			while(!stopTest) {
+				Thread.sleep(500);
+				if(Instant.now().isAfter(config.testEndTime)) {
+					stopTest=true;
+				}
+				if(runningThreads.get() == 0) {
+					stopTest=true;
+				}
+			}
+		
+			executor.shutdown();
+			while(!executor.isTerminated()) {
+				try {
+					Thread.sleep(500);
+					debug("Waiting for Executor to shutdown...Running Threads="+runningThreads.get());
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			metric.stopPrintTimer();
+			metric.printSummary();
+		} catch (Exception e) {
+			e.printStackTrace(errorLog);
+		}
+	}
 	public final void start(String[] args) {
 		config = getConfiguration(args);
-		
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-		    try {
-		    	if(!stopTest) {
-		    		stopTest=true;
-		    		executor.shutdownNow();
-		    		metric.printSummary();
-		    	}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		 }));
+			stopTest=true;
+			config.gengraph=false;
+			shutdown();
+			}));
+		
 		try {
 			init();			
 			executor = Executors.newFixedThreadPool(config.vUsers);
@@ -474,34 +485,9 @@ public abstract class TestCase {
 				executor.execute(vUser);
 				Thread.sleep(sleepTime * 1000);
 			}
-
-			while(!stopTest) {
-				Thread.sleep(500);
-				if(Instant.now().isAfter(config.testEndTime)) {
-					stopTest=true;
-				}
-				if(runningThreads.get() == 0) {
-					stopTest=true;
-				}
-			}
-			
-			executor.shutdown();
-			while(!executor.isTerminated()) {
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			metric.stopPrintTimer();
-			try {					
-				metric.printSummary();
-			} catch (IOException e) {
-				e.printStackTrace(LOG.errorLog);
-			}
-			 
+			shutdown();
 		} catch (Exception e) {
-			e.printStackTrace(LOG.errorLog);
+			e.printStackTrace(errorLog);
 		}		
 	}
 

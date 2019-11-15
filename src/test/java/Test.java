@@ -12,17 +12,11 @@ public class Test {
 			protected void execute() throws Exception {
 				startStep("STEP1");
 				String URLString = "https://jsonplaceholder.typicode.com/todos/1";
-				try {
-					HttpRequest request1 = HttpRequest.newBuilder()
-					.uri(URI.create(URLString))
-					.GET()   
-					.build();
-					HttpResponse<String> response1 = httpClient.send(request1, BodyHandlers.ofString());					
-				} catch (Exception e) {
-					throw new Exception( 
-							String.format("Error Accessing URI:%s,ResponseCode=%d",URLString)
-							,e);
-				}
+				HttpRequest request1 = HttpRequest.newBuilder()
+				.uri(URI.create(URLString))
+				.GET()   
+				.build();
+				HttpResponse<String> response1 = httpClient.send(request1, BodyHandlers.ofString());					
 				endStep("STEP1");
 			}
 		};	
