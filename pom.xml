@@ -5,7 +5,7 @@
 	<groupId>io.funxion</groupId>
 	<artifactId>HailStorm</artifactId>
 	<packaging>jar</packaging>
-	<version>1.2</version>
+	<version>1.3-SNAPSHOT</version>
 	<name>HailStorm</name>
 	<url>https://nikkushankar.github.io/hailstorm</url>
 	<properties>
