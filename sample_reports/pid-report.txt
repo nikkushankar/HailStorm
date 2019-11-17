@@ -1,0 +1,23 @@
+--------------------------------------------------------------------------------
+Configuration [vUsers=2, iterations=2147483647, duration=60, printMetric=10, connectTimeout=PT10S, authUser=null, authPassword=null, proxyHost=null, proxyPort=null, functionalMode=false, verbose=false, throughput=0, gengraph=true, rampRate=0, testEndTime=2019-11-17T02:53:11.162176500Z, outputFolder=sample_reports]
+--------------------------------------------------------------------------------
+EXECUTIONS=150 : ERRORS=0 : MAIN : 131.23 : STEP1 : 54.81 : STEP2 : 69.0
+EXECUTIONS=156 : ERRORS=0 : MAIN : 127.87 : STEP1 : 53.25 : STEP2 : 68.6
+EXECUTIONS=158 : ERRORS=0 : MAIN : 127.22 : STEP1 : 52.97 : STEP2 : 68.3
+EXECUTIONS=156 : ERRORS=0 : MAIN : 126.84 : STEP1 : 52.91 : STEP2 : 67.9
+EXECUTIONS=158 : ERRORS=0 : MAIN : 126.80 : STEP1 : 52.70 : STEP2 : 67.9
+EXECUTIONS=155 : ERRORS=0 : MAIN : 126.69 : STEP1 : 52.61 : STEP2 : 68.0
+EXECUTIONS=4 : ERRORS=0 : MAIN : 127.50 : STEP1 : 53.50 : STEP2 : 68.5
+--------------------------------------------------------------------------------
+STEP:STEP1       , MIN:       50.00, MAX:      195.00, MEAN:       53.20
+STEP:STEP2       , MIN:       65.00, MAX:       75.00, MEAN:       68.31
+--------------------------------------------------------------------------------
+SUCCESSFUL_EXECUTION:938, MIN:      122.00, MAX:      294.00, MEAN:      127.75
+FAILED_EXECUTION:0,FAILED_PERCENTAGE 0.00
+--------------------------------------------------------------------------------
+TEST_START:Nov 16, 2019, 6:52:11 PM
+TEST_END:Nov 16, 2019, 6:53:12 PM
+DURATION:60 Seconds
+--------------------------------------------------------------------------------
+Generating Summary Chart in the folder sample_reports
+--------------------------------------------------------------------------------
