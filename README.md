@@ -7,7 +7,7 @@ Also take a look at the sister project funxion.io/FunxionServiceTest/src/main/ja
 ```
 mvn clean package
 ```
-## Sample Code
+## Sample Code 
 ```
 import java.net.URI;
 import java.net.http.HttpRequest;

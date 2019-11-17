@@ -7,7 +7,7 @@ echo ## Build
 echo ```
 echo mvn clean package
 echo ```
-echo ## Sample Code
+echo ## Sample Code 
 echo ```
 type src\test\java\Test.java
 echo ```
