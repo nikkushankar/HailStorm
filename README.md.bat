@@ -1,4 +1,4 @@
-echo # Hailstorm: Simple Integration and Load Testing Tool using Java 11
+echo # Hailstorm: Simple Integration and Load Testing Tool
 echo Java 11 includes support for JEP 330, Launch Single-File Source-Code Programs. This feature allows you to execute a Java source code file directly using the java interpreter. The source code is compiled in memory and then executed by the interpreter, without producing a .class file on disk.
 echo This enables using Java similar to a scripting language. With earlier precompiled java frameworks, People used to put a lot of stuff in configration files. Now its no longer needed people can create easily editable scripts and use them on the go. 
 echo Check the examples included in the folder src/test/java
