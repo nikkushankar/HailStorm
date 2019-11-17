@@ -3,7 +3,6 @@ echo Java 11 includes support for JEP 330, Launch Single-File Source-Code Progra
 echo This enables using Java similar to a scripting language. With earlier precompiled java frameworks, People used to put a lot of stuff in configration files. Now its no longer needed people can create easily editable scripts and use them on the go. 
 echo Check the examples included in the folder src/test/java
 echo Also take a look at the sister project funxion.io/FunxionServiceTest/src/main/java/io/funxion . The test scripts for testing www.funxion.io are located there. 
-echo ### Github Page : https://nikkushankar.github.io/HailStorm/
 echo ## Build
 echo ```
 echo mvn clean package
